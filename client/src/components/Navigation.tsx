@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 
 export default function Navigation() {
@@ -81,6 +81,40 @@ export default function Navigation() {
     { id: 'contact', label: 'Contact', icon: 'fas fa-envelope' }
   ];
 
+  const navRef = useRef<HTMLElement | null>(null);
+  const [spacerHeight, setSpacerHeight] = useState<number>(0);
+
+  // Measure nav height and update spacer; keep it responsive
+  useEffect(() => {
+    const measure = () => {
+      try {
+        const h = navRef.current ? navRef.current.offsetHeight : 0;
+        // Only add spacer on small screens to avoid changing desktop layout
+        const isSmall = typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
+        setSpacerHeight(isSmall ? h : 0);
+      } catch (e) {
+        setSpacerHeight(64);
+      }
+    };
+
+    measure();
+    window.addEventListener('resize', measure, { passive: true });
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  // Apply scroll padding so anchor jumps land below the fixed navbar
+  useEffect(() => {
+    try {
+      if (spacerHeight && typeof document !== 'undefined' && document.documentElement) {
+        (document.documentElement.style as any).scrollPaddingTop = `${spacerHeight}px`;
+      } else if (typeof document !== 'undefined' && document.documentElement) {
+        (document.documentElement.style as any).scrollPaddingTop = '';
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [spacerHeight]);
+
   return (
     <>
       <nav 
@@ -92,13 +126,14 @@ export default function Navigation() {
           willChange: 'transform'
         }}
         data-testid="navigation"
+        ref={navRef}
       >
         <div className="container mx-auto px-4 lg:px-6 py-6">
           <div className="flex justify-between items-center">
             {/* Enhanced logo with performance optimizations */}
             <div className="flex items-center gap-3 will-change-transform">
               <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg transform-gpu">
-                <span className="text-white font-orbitron font-bold text-lg" data-testid="logo">BA</span>
+                <span className="text-white font-orbitron font-bold text-lg" data-testid="logo">A</span>
               </div>
             </div>
             
@@ -141,10 +176,12 @@ export default function Navigation() {
           </div>
         </div>
       </nav>
+  {/* Spacer to push page content below the fixed navbar on small screens */}
+  <div aria-hidden style={{ height: spacerHeight }} />
       
       {/* Enhanced Mobile Menu with Performance Optimizations */}
       <div
-        className={`fixed top-24 left-0 right-0 bottom-0 z-40 lg:hidden transform-gpu will-change-opacity will-change-transform ${
+        className={`fixed left-0 right-0 bottom-0 z-40 lg:hidden transform-gpu will-change-opacity will-change-transform ${
           isMenuOpen 
             ? 'opacity-100 pointer-events-auto' 
             : 'opacity-0 pointer-events-none'
@@ -166,7 +203,7 @@ export default function Navigation() {
         
         {/* Menu content with hardware acceleration */}
         <div 
-          className={`absolute top-0 right-0 bottom-0 w-80 max-w-[80vw] glass border-l border-primary/20 transform-gpu ${
+          className={`absolute right-0 bottom-0 w-80 max-w-[80vw] glass border-l border-primary/20 transform-gpu ${
             isMenuOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
           style={{
@@ -174,7 +211,8 @@ export default function Navigation() {
             willChange: 'transform',
             transform: 'translate3d(0,0,0)',
             backfaceVisibility: 'hidden',
-            perspective: '1000px'
+            perspective: '1000px',
+            top: `${spacerHeight}px` // ensure the mobile menu sits below the navbar
           }}
           data-testid="mobile-menu"
         >
@@ -193,37 +231,35 @@ export default function Navigation() {
               <ThemeToggle />
             </div>
             
-            {/* Mobile navigation links */}
+            {/* Mobile navigation links (stacked: icon above label) */}
             <div className="space-y-2">
               {navItems.map((item, index) => (
-                <a 
+                <a
                   key={item.id}
-                  href={`#${item.id}`} 
-                  className={`nav-link flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${
-                    activeSection === item.id 
-                      ? 'bg-primary/20 text-primary border border-primary/30' 
+                  href={`#${item.id}`}
+                  className={`nav-link flex flex-col items-center text-center gap-2 p-4 rounded-xl transition-all duration-300 ${
+                    activeSection === item.id
+                      ? 'bg-primary/20 text-primary border border-primary/30'
                       : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                   style={{ transitionDelay: `${index * 50}ms` }}
                 >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    activeSection === item.id 
-                      ? 'bg-primary/30' 
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-1 ${
+                    activeSection === item.id
+                      ? 'bg-primary/30'
                       : 'bg-muted/20'
                   }`}>
                     <i className={item.icon}></i>
                   </div>
-                  <div>
-                    <div className="font-semibold">{item.label}</div>
-                    <div className="text-xs opacity-60">
-                      {item.id === 'hero' && 'Welcome & Introduction'}
-                      {item.id === 'about' && 'My Story & Journey'}
-                      {item.id === 'skills' && 'Technical Expertise'}
-                      {item.id === 'projects' && 'Featured Work'}
-                      {item.id === 'resume' && 'Experience & Education'}
-                      {item.id === 'contact' && 'Let\'s Connect'}
-                    </div>
+                  <div className="font-semibold text-sm">{item.label}</div>
+                  <div className="text-xs opacity-60">
+                    {item.id === 'hero' && 'Welcome & Introduction'}
+                    {item.id === 'about' && 'My Story & Journey'}
+                    {item.id === 'skills' && 'Technical Expertise'}
+                    {item.id === 'projects' && 'Featured Work'}
+                    {item.id === 'resume' && 'Experience & Education'}
+                    {item.id === 'contact' && 'Let\'s Connect'}
                   </div>
                 </a>
               ))}

@@ -8,6 +8,7 @@ import { useBackgroundControl } from "./BackgroundContext";
 export default function BackgroundEngine() {
   const { mode, intensity, enableParticles, enableMotion } = useBackgroundControl();
   const [isReduced, setIsReduced] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   useEffect(() => {
     // Check for reduced motion preference
@@ -16,12 +17,27 @@ export default function BackgroundEngine() {
     
     const handleChange = () => setIsReduced(mediaQuery.matches);
     mediaQuery.addEventListener('change', handleChange);
+    // small screen detection to disable heavy layers on mobile
+    const mqSmall = window.matchMedia('(max-width: 767px)');
+    setIsSmallScreen(mqSmall.matches);
+    const handleSmall = () => setIsSmallScreen(mqSmall.matches);
+    mqSmall.addEventListener('change', handleSmall);
     
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
+  // remove small screen listener in a separate effect to avoid mixing returns
+  useEffect(() => {
+    const mqSmall = window.matchMedia('(max-width: 767px)');
+    const handleSmall = () => setIsSmallScreen(mqSmall.matches);
+    mqSmall.addEventListener('change', handleSmall);
+    return () => mqSmall.removeEventListener('change', handleSmall);
+  }, []);
+
   const shouldShowLayer = (layer: 'particles' | 'shapes' | 'grid') => {
     if (mode === 'minimal') return false;
+    // Avoid heavy visual layers on small screens even if enabled in settings
+    if (isSmallScreen) return false;
     if (layer === 'particles' && !enableParticles) return false;
     if (layer === 'shapes' && mode === 'standard') return false;
     return true;

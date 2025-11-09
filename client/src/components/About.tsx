@@ -15,6 +15,8 @@ export default function About() {
   const [isConsoleMode, setIsConsoleMode] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [typingText, setTypingText] = useState('');
+  const [isSmallScreen, setIsSmallScreen] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
   const fullText = "Passionate developer crafting digital experiences...";
 
@@ -30,6 +32,16 @@ export default function About() {
 
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
+  }, []);
+
+  // Track small screen state to switch timeline into single-item carousel on mobile
+  useEffect(() => {
+    const mq = () => (typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+    const handleResize = () => setIsSmallScreen(mq());
+    window.addEventListener('resize', handleResize);
+    // set initial
+    setIsSmallScreen(mq());
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -51,7 +63,9 @@ export default function About() {
     <section
       ref={sectionRef}
       id="about"
-      className="section bg-gradient-to-b from-background to-card relative overflow-hidden"
+      // allow overflow visible on small screens so tall intro/timeline cards are not clipped
+      // add extra bottom padding on small screens so the last timeline card is fully visible before the next section
+      className="section bg-gradient-to-b from-background to-card relative md:overflow-hidden overflow-visible pb-28 md:pb-12"
       data-testid="about-section"
     >
       {/* Background elements */}
@@ -110,12 +124,21 @@ export default function About() {
               data-testid="timeline-view"
             >
               <div className="relative">
-                {/* Timeline line */}
-                <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-primary via-secondary to-accent shadow-lg shadow-primary/50"></div>
+        {/* Timeline line */}
+        {/* Use top/bottom so the line doesn't depend on initial parent height to avoid 'glitch' on first paint.
+          Keep it behind cards (z-0) and remove heavy shadow so it doesn't glow over cards. */}
+                {/* vertical timeline line: visible but placed behind cards (z-0). Use a 1px line with gradient so it looks neon yet doesn't cast heavy shadows. */}
+                <div
+                  className="absolute left-1/2 transform -translate-x-1/2 -top-8 -bottom-8 w-px pointer-events-none z-0"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(0,225,255,0.95), rgba(179,101,247,0.9), rgba(0,255,148,0.9))',
+                    boxShadow: '0 0 18px rgba(0,225,255,0.08)'
+                  }}
+                />
 
-                {/* Intro card */}
-                <div className="mb-16 flex justify-center">
-                  <div className="glass p-8 rounded-2xl card-3d max-w-2xl border border-primary/20">
+                    {/* Intro card */}
+                    <div className="mb-16 flex justify-center">
+                      <div className="glass p-8 rounded-2xl card-3d max-w-2xl border border-primary/20 min-h-[220px] md:min-h-0 relative z-20">
                     <div className="flex items-center gap-6 mb-6">
                       <div className="w-24 h-24 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-4xl font-bold text-white">
                         BA
@@ -134,8 +157,9 @@ export default function About() {
                 </div>
 
                 {/* Timeline items */}
-                <div className="space-y-20">
-                  {[
+                <div className="space-y-24 py-8 md:py-0 pb-12">
+                  {(
+                    [
                     {
                       id: 'education',
                       title: 'Computer Science And Engineering',
@@ -156,73 +180,103 @@ export default function About() {
                       icon: 'fas fa-briefcase',
                       side: 'right'
                     }
-                  ].map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center justify-between transition-all duration-1000 ${
-                        isVisible
-                          ? 'opacity-100 translate-x-0'
-                          : `opacity-0 ${item.side === 'left' ? '-translate-x-10' : 'translate-x-10'}`
-                      }`}
-                      data-testid={`timeline-item-${item.id}`}
-                    >
-                      {item.side === 'left' ? (
-                        <>
-                          <div className="w-5/12 glass p-8 rounded-2xl card-3d border border-primary/20 group hover:border-primary/40 transition-all">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className={`w-12 h-12 rounded-xl bg-${item.color}/20 flex items-center justify-center group-hover:bg-${item.color}/30 transition-colors`}>
-                                <i className={`${item.icon} text-${item.color} text-xl`}></i>
-                              </div>
-                              <div>
-                                <h3 className={`text-xl font-bold text-${item.color} group-hover:text-${item.color}/80 transition-colors`}>{item.title}</h3>
-                                <p className="text-sm text-muted-foreground">{item.period}</p>
-                              </div>
+                  ].map((item, index) => ({ ...item, _index: index }))
+                  ).map((itemWithIndex, idx, arr) => {
+                    // For mobile/small screens show only one item at a time in a simple carousel
+                    const items = arr.map(a => a);
+                    const item = itemWithIndex;
+                    const renderCard = (it: any) => (
+                      <div className={`glass p-6 rounded-2xl card-3d border border-primary/20 group hover:border-primary/40 transition-all w-full relative z-20`}>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className={`w-12 h-12 rounded-xl bg-${it.color}/20 flex items-center justify-center group-hover:bg-${it.color}/30 transition-colors`}>
+                            <i className={`${it.icon} text-${it.color} text-xl`}></i>
+                          </div>
+                          <div>
+                            <h3 className={`text-xl font-bold text-${it.color} group-hover:text-${it.color}/80 transition-colors`}>{it.title}</h3>
+                            <p className="text-sm text-muted-foreground">{it.period}</p>
+                          </div>
+                        </div>
+                        <p className="text-foreground mb-4 leading-relaxed">{it.description}</p>
+                        <div className="space-y-2">
+                          {it.details.map((detail: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <div className={`w-2 h-2 rounded-full bg-${it.color}`}></div>
+                              {detail}
                             </div>
-                            <p className="text-foreground mb-4 leading-relaxed">{item.description}</p>
-                            <div className="space-y-2">
-                              {item.details.map((detail, i) => (
-                                <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <div className={`w-2 h-2 rounded-full bg-${item.color}`}></div>
-                                  {detail}
+                          ))}
+                        </div>
+                      </div>
+                    );
+
+                    if (isSmallScreen) {
+                      // Render the current index prominently and show remaining items stacked below
+                      if (idx !== currentIndex) return null;
+                      return (
+                        <div key={itemWithIndex.id} className={`transition-all duration-700 opacity-100`} data-testid={`timeline-item-${itemWithIndex.id}`}>
+                          <div className="mb-6">{renderCard(itemWithIndex)}</div>
+
+                          {/* Pagination indicator only (no Next button) */}
+                          <div className="flex items-center justify-center gap-4 mt-4 mb-4">
+                            <div className="text-sm text-muted-foreground">{currentIndex + 1} / {items.length}</div>
+                          </div>
+
+                          {/* Remaining items shown below in condensed form */}
+                          <div className="space-y-4">
+                            {items.map((it: any, i: number) => {
+                              if (i === currentIndex) return null;
+                              return (
+                                <div
+                                  key={it.id}
+                                  className="glass p-4 rounded-lg border border-primary/10 flex items-start gap-4 relative z-20"
+                                  onClick={() => setCurrentIndex(i)}
+                                >
+                                  <div className={`w-10 h-10 rounded-md bg-${it.color}/20 flex items-center justify-center`}> 
+                                    <i className={`${it.icon} text-${it.color}`}></i>
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-sm mb-1">{it.title}</div>
+                                    <div className="text-xs text-muted-foreground">{it.period}</div>
+                                  </div>
                                 </div>
-                              ))}
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Desktop / larger screens keep the old layout
+                    const side = itemWithIndex.side;
+                    return (
+                      <div
+                        key={itemWithIndex.id}
+                        className={`flex items-center justify-between transition-all duration-1000 ${
+                          isVisible
+                            ? 'opacity-100 translate-x-0'
+                            : `opacity-0 ${side === 'left' ? '-translate-x-10' : 'translate-x-10'}`
+                        }`}
+                        data-testid={`timeline-item-${itemWithIndex.id}`}
+                      >
+                        {side === 'left' ? (
+                          <>
+                            <div className="w-5/12">{renderCard(itemWithIndex)}</div>
+                            <div className="w-2/12 flex justify-center">
+                              <div className={`w-6 h-6 bg-${itemWithIndex.color} rounded-full border-4 border-background shadow-lg shadow-${itemWithIndex.color}/50 animate-pulse`}></div>
                             </div>
-                          </div>
-                          <div className="w-2/12 flex justify-center">
-                            <div className={`w-6 h-6 bg-${item.color} rounded-full border-4 border-background shadow-lg shadow-${item.color}/50 animate-pulse`}></div>
-                          </div>
-                          <div className="w-5/12"></div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-5/12"></div>
-                          <div className="w-2/12 flex justify-center">
-                            <div className={`w-6 h-6 bg-${item.color} rounded-full border-4 border-background shadow-lg shadow-${item.color}/50 animate-pulse`}></div>
-                          </div>
-                          <div className="w-5/12 glass p-8 rounded-2xl card-3d border border-primary/20 group hover:border-primary/40 transition-all">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className={`w-12 h-12 rounded-xl bg-${item.color}/20 flex items-center justify-center group-hover:bg-${item.color}/30 transition-colors`}>
-                                <i className={`${item.icon} text-${item.color} text-xl`}></i>
-                              </div>
-                              <div>
-                                <h3 className={`text-xl font-bold text-${item.color} group-hover:text-${item.color}/80 transition-colors`}>{item.title}</h3>
-                                <p className="text-sm text-muted-foreground">{item.period}</p>
-                              </div>
+                            <div className="w-5/12"></div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-5/12"></div>
+                            <div className="w-2/12 flex justify-center">
+                              <div className={`w-6 h-6 bg-${itemWithIndex.color} rounded-full border-4 border-background shadow-lg shadow-${itemWithIndex.color}/50 animate-pulse`}></div>
                             </div>
-                            <p className="text-foreground mb-4 leading-relaxed">{item.description}</p>
-                            <div className="space-y-2">
-                              {item.details.map((detail, i) => (
-                                <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <div className={`w-2 h-2 rounded-full bg-${item.color}`}></div>
-                                  {detail}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                            <div className="w-5/12">{renderCard(itemWithIndex)}</div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

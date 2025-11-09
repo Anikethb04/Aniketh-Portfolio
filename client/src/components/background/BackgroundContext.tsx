@@ -25,13 +25,44 @@ interface BackgroundProviderProps {
 }
 
 export function BackgroundProvider({ children }: BackgroundProviderProps) {
-  const [settings, setSettings] = useState<BackgroundSettings>({
-    mode: 'standard',
-    intensity: 0.7,
-    enableParticles: true,
-    enableMotion: true,
-    colorScheme: 'neon'
-  });
+  // Compute initial settings synchronously to avoid a heavy first paint on mobile/low-end devices
+  const getInitialSettings = (): BackgroundSettings => {
+    try {
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      const isLowEnd = typeof navigator !== 'undefined' && 'deviceMemory' in navigator && (navigator as any).deviceMemory < 4;
+      const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (isMobile || isLowEnd) {
+        return {
+          mode: 'minimal',
+          intensity: 0.4,
+          enableParticles: false,
+          enableMotion: !prefersReducedMotion,
+          colorScheme: 'neon'
+        };
+      }
+
+      return {
+        mode: 'standard',
+        intensity: 0.7,
+        enableParticles: true,
+        enableMotion: !prefersReducedMotion,
+        colorScheme: 'neon'
+      };
+    } catch (e) {
+      // Fallback safe defaults
+      return {
+        mode: 'standard',
+        intensity: 0.7,
+        enableParticles: true,
+        enableMotion: true,
+        colorScheme: 'neon'
+      };
+    }
+  };
+
+  const [settings, setSettings] = useState<BackgroundSettings>(getInitialSettings);
 
   // Auto-detect device capabilities and adjust defaults
   useEffect(() => {

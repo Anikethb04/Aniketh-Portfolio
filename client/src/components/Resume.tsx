@@ -149,7 +149,7 @@ export default function Resume() {
 
   const handleDownloadResume = () => {
     // Replace this URL with your actual Google Drive file URL
-    const resumeUrl = "https://drive.google.com/file/d/1Ntg6Buidd7cYis8nmCv8dcGlUgcshzFb/view?usp=sharing";
+    const resumeUrl = "https://drive.google.com/file/d/1HS-oWhxhxUlSJiGHK81dtH3m57DuwjqK/view?usp=sharing";
     
     // Create a temporary anchor element
     const link = document.createElement('a');
